@@ -1,5 +1,5 @@
 use crate::{
-    commands,
+    commands::{self, MappableCommand},
     compositor::{Component, Context, Event, EventResult},
     job::{self, Callback},
     key,
@@ -920,6 +920,18 @@ impl EditorView {
         let mut execute_command = |command: &commands::MappableCommand| {
             command.execute(cxt);
             let current_mode = cxt.editor.mode();
+            match command {
+                MappableCommand::Static { name, .. } if name.to_string() == "surround_delete" => {
+                    self.last_insert.1.clear();
+                    self.last_insert.0 = command.clone();
+                    let mut set_key = |cx, event| {
+                        self.last_insert.1.push(InsertEvent::Key(event));
+                    };
+                    // TODO only one callback is possible waiting on key, remove this
+                    cxt.on_next_key(set_key);
+                }
+                _ => { }
+            }
             match (last_mode, current_mode) {
                 (Mode::Normal, Mode::Insert) => {
                     // HAXX: if we just entered insert mode from normal, clear key buf
